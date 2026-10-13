@@ -10,7 +10,8 @@ Black–Scholes option pricing and Greeks in Python, with analytical, finite-dif
 | Put-call parity and textbook checks | Done |
 | Greeks: Delta, Gamma, Vega, Theta, Rho | Done |
 | Finite-difference validation of the Greeks | Done |
-| Monte Carlo validation | Planned |
+| Monte Carlo validation | Done |
+| Plots of the Greeks and Monte Carlo convergence | Done |
 
 ## Model
 
@@ -38,10 +39,23 @@ Put  = K e^(−rT) N(−d2) − S N(−d1)
 
 For the Hull example: call Delta 0.779, put Delta −0.221, Gamma 0.0500, Vega 8.81, call Theta −4.56, put Theta −0.75, call Rho 13.98, put Rho −5.04.
 
+## Plots
+
+![Black–Scholes price and Greeks against the stock price](docs/greeks.png)
+
+- **Delta** moves from 0 to 1 for a call (−1 to 0 for a put); call Delta − put Delta = 1 at every price.
+- **Gamma and Vega** are bell-shaped and identical for calls and puts. Gamma peaks where d1 = 0, at S = K e^(−(r + σ²/2)T) ≈ 37.7, slightly below the strike.
+- **Theta** is negative for calls. For a deep in-the-money European put it turns positive: the put is worth roughly K e^(−rT) − S, and that discounted strike grows as expiry approaches.
+
+![Monte Carlo estimate converging to the Black–Scholes price](docs/mc_convergence.png)
+
+Each point is an independent simulation. The ±2 standard-error band narrows like 1/√n, and the estimates settle on the closed-form price.
+
 ## Validation
 
 - **Textbook value:** Hull's Example 15.6 (S = 42, K = 40, T = 0.5, r = 10%, σ = 20%) gives a call of 4.76 and a put of 0.81.
 - **Finite differences:** every analytical Greek is compared with a central difference of the pricing function (bump S, σ, r or T) across 24 parameter combinations, for calls and puts. This independent check caught an operator-precedence error in Theta during development: `x / 2 * sqrt(T)` puts √T in the numerator, and the put Theta came out positive.
+- **Monte Carlo:** simulating S_T = S e^((r − σ²/2)T + σ√T Z) under the risk-neutral measure and discounting the average payoff reproduces the closed-form price. For the Hull example, 100,000 paths give a call of 4.7548 (closed form 4.7594, standard error 0.016) and a put of 0.8094 (closed form 0.8086). Tests require the estimate to lie within four standard errors of Black–Scholes for calls and puts across three parameter sets, and check that the standard error shrinks like 1/√n.
 - **Put-call parity:** `C − P = S − K e^(−rT)` holds to 1e-10 across a grid of prices, volatilities and maturities. Parity follows from no-arbitrage alone, so it catches sign errors in the put formula that would otherwise run without error. Differentiating it gives the Greek relations that are also tested: call Delta − put Delta = 1, and calls and puts share Gamma and Vega.
 
 ## Run it
@@ -49,6 +63,7 @@ For the Hull example: call Delta 0.779, put Delta −0.221, Gamma 0.0500, Vega 8
 ```bash
 pip install -r requirements.txt
 pytest
+python -m examples.plot_greeks   # regenerates docs/greeks.png and docs/mc_convergence.png
 ```
 
 ```python
