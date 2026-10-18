@@ -1,5 +1,6 @@
 import math
 from .black_scholes import bs_price
+from .greeks import vega
 
 
 def implied_vol_bisection(price, S, K, T, r, option_type="call", tol=1e-8, max_iter=200):
@@ -31,3 +32,23 @@ def implied_vol_bisection(price, S, K, T, r, option_type="call", tol=1e-8, max_i
             break
 
     return mid
+
+
+def implied_vol_newton(price, S, K, T, r, option_type="call", tol=1e-8, max_iter=50):
+    sigma = 0.2                                  
+
+    for i in range(max_iter):
+        model_price = bs_price(S, K, T, r, sigma, option_type)
+        diff = model_price - price 
+
+        if abs(diff) < tol:
+            return sigma
+        
+        v = vega(S, K, T, r, sigma)                 
+
+        if v < 1e-8:                              
+            return implied_vol_bisection(price, S, K, T, r, option_type)
+
+        sigma = sigma - (diff / v)
+
+    return implied_vol_bisection(price, S, K, T, r, option_type)   
