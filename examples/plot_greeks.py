@@ -31,8 +31,8 @@ def greeks_figure(path):
         ax.set_title(title, color=INK, loc="left", fontsize=11)
         ax.set_xlabel("Stock price S")
     axes[0].legend(frameon=False)
-    s_peak = K * np.exp(-(r + 0.5 * sigma**2) * T)   # where d1 = 0
-    axes[2].annotate(f"peak at S ≈ {s_peak:.1f} (d₁ = 0)", xy=(s_peak, gamma(s_peak, K, T, r, sigma)), xytext=(44, 0.06),
+    s_peak = K * np.exp(-(r + 1.5 * sigma**2) * T)   # where d1 = -sigma*sqrt(T)
+    axes[2].annotate(f"peak at S ≈ {s_peak:.1f} (d₁ = −σ√T)", xy=(s_peak, gamma(s_peak, K, T, r, sigma)), xytext=(44, 0.06),
                      color=MUTED, fontsize=9, arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.8))
     fig.suptitle(f"Black–Scholes price and Greeks  (K = {K}, T = {T}, r = {r:.0%}, σ = {sigma:.0%})",
                  color=INK, x=0.01, ha="left", fontsize=12)

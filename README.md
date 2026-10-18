@@ -46,7 +46,7 @@ For the Hull example: call Delta 0.779, put Delta −0.221, Gamma 0.0500, Vega 8
 ![Black–Scholes price and Greeks against the stock price](docs/greeks.png)
 
 - **Delta** moves from 0 to 1 for a call (−1 to 0 for a put); call Delta − put Delta = 1 at every price.
-- **Gamma and Vega** are bell-shaped and identical for calls and puts. Gamma peaks where d1 = 0, at S = K e^(−(r + σ²/2)T) ≈ 37.7, slightly below the strike.
+- **Gamma and Vega** are bell-shaped and identical for calls and puts. Gamma peaks where d1 = −σ√T, at S = K e^(−(r + 3σ²/2)T) ≈ 36.9, below the strike. (Setting d1 = 0 would miss the extra 1/S factor in Gamma = n(d1) / (S σ √T).)
 - **Theta** is negative for calls. For a deep in-the-money European put it turns positive: the put is worth roughly K e^(−rT) − S, and that discounted strike grows as expiry approaches.
 
 ![Monte Carlo estimate converging to the Black–Scholes price](docs/mc_convergence.png)
