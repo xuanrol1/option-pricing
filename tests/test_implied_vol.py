@@ -20,3 +20,10 @@ def test_round_trip(method, option_type, S, T, sigma):
 def test_rejects_price_above_upper_bound(method):
     with pytest.raises(ValueError):
         method(50, 42, 40, 0.5, 0.10, "call")
+        
+
+@pytest.mark.parametrize("method", METHODS)
+def test_deep_out_of_the_money_put(method):
+    S, K, T, r, sigma = 55, 40, 0.5, 0.05, 0.05
+    price = bs_price(S, K, T, r, sigma, "put")
+    assert method(price, S, K, T, r, "put") == pytest.approx(sigma, abs=1e-6)

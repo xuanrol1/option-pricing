@@ -44,15 +44,16 @@ def implied_vol_newton(price, S, K, T, r, option_type="call", tol=1e-8, max_iter
     for i in range(max_iter):
         model_price = bs_price(S, K, T, r, sigma, option_type)
         diff = model_price - price 
-
-        if abs(diff) < tol:
-            return sigma
+        v = vega(S, K, T, r, sigma) 
         
-        v = vega(S, K, T, r, sigma)                 
-
-        if v < 1e-8:                              
+        if v < 1e-8:
             return implied_vol_bisection(price, S, K, T, r, option_type)
+        
+        step = diff / v
+        sigma = sigma - step
+        
+        if abs(step) < tol:
+            return sigma
 
-        sigma = sigma - (diff / v)
 
     return implied_vol_bisection(price, S, K, T, r, option_type)   
