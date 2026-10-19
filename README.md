@@ -13,7 +13,7 @@ Black–Scholes option pricing, Greeks and implied volatility in Python, with an
 | Monte Carlo validation | Done |
 | Plots of the Greeks and Monte Carlo convergence | Done |
 | Implied volatility: bisection and Newton–Raphson | Done |
-| Volatility smile from market option data | Next |
+| Volatility smile from market option data | Done |
 
 ## Model
 
@@ -78,6 +78,16 @@ Newton's errors in σ go 0.035 → 0.000078 → 0.0000000005: each step roughly 
 - **Stopping on σ, not on price.** Newton first stopped when the price error fell below 1e-8. For a deep out-of-the-money put (S = 55, K = 40, T = 0.5, σ = 5%) the price is about 1e-23, and every σ up to about 8.6% also gives a price below 1e-8, so Newton stopped at 8.6%. It now stops when the step in σ is below the tolerance, and a regression test covers this case.
 
 **Tests:** round trips for both solvers over 72 combinations of stock price, maturity, volatility and option type recover σ to within 1e-6; out-of-bounds prices raise `ValueError`; the deep out-of-the-money case above is tested explicitly.
+
+### Volatility smile from market data
+
+![AMZN implied volatility smile](docs/vol_smile.png)
+
+`examples/vol_smile.py` downloads the AMZN call chain expiring 2026-11-20 from Yahoo Finance (closing quotes of 16 Oct 2026, spot 250, 13-week T-bill rate 4.07%), prices each option at the bid-ask midpoint, drops quotes with no bid or a spread above 20% of the midpoint, and solves for implied volatility with `implied_vol_newton`.
+
+If Black–Scholes held exactly, the curve would be flat. Instead implied volatility falls from about 50% at a strike of 205 to about 40% near 285, then turns up slightly: the equity skew. Out-of-the-money strikes match Yahoo's figures to within 0.01; the gap widens in the money, where Yahoo's numbers are reproduced closely by setting the interest rate to zero. Four deep in-the-money quotes fall below the no-arbitrage lower bound, so the bounds check rejects them.
+
+Calls only: AMZN pays no dividend, so an American call is worth the same as a European one and Black–Scholes applies. American puts can be exercised early, so they are left out.
 
 ## Run it
 
