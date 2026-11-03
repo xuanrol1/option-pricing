@@ -35,3 +35,32 @@ def binomial_price(S, K, T, r, sigma, option_type="call", n=500, american=False)
             j = np.arange(step + 1)
             V = np.maximum(V, payoff(S * u**j * d**(step - j)))
     return float(V[0])
+
+
+def american_put_boundary(S, K, T, r, sigma, n=500):
+    """Early-exercise boundary of an American put on an n-step CRR tree.
+
+    Returns (times, S_star): at each step i < n, S_star[i] is the highest node price at
+    which exercising immediately is optimal, or NaN if no node at that step should be
+    exercised. Below S_star the put is exercised; above it, it is held.
+    """
+    dt = T / n
+    u = np.exp(sigma * np.sqrt(dt))
+    d = 1 / u
+    disc = np.exp(-r * dt)
+    p = (np.exp(r * dt) - d) / (u - d)
+    j = np.arange(n + 1)
+    V = np.maximum(K - S * u**j * d**(n - j), 0)
+    S_star = np.full(n, np.nan)
+    for step in range(n - 1, -1, -1):
+        j = np.arange(step + 1)
+        S_nodes = S * u**j * d**(step - j)
+        hold = disc * (p * V[1:] + (1 - p) * V[:-1])
+        exercise = np.maximum(K - S_nodes, 0)
+        # Strictly better by more than rounding: with r = 0, hold equals K − S exactly in
+        # exact arithmetic, and float noise alone must not count as early exercise.
+        early = (exercise > hold + 1e-12 * K) & (exercise > 0)
+        if early.any():
+            S_star[step] = S_nodes[early].max()
+        V = np.maximum(hold, exercise)
+    return np.arange(n) * dt, S_star

@@ -16,6 +16,7 @@ Black–Scholes option pricing, Greeks, implied volatility and binomial trees fo
 | Implied volatility: bisection and Newton–Raphson | Done |
 | Volatility smile from market option data | Done |
 | Binomial tree (CRR): European and American options | Done |
+| American put early-exercise boundary | Done |
 
 ## Model
 
@@ -111,12 +112,29 @@ Calls only: AMZN pays no dividend, so an American call is worth the same as a Eu
 - **American put > European put.** Deep in the money, a European put is worth about K e^(−rT) − S, which is less than the intrinsic value K − S. The American put can be exercised for K − S immediately. For the Hull example the American put is worth 0.910 against 0.809 for the European one.
 - **Textbook value:** Hull's Example 21.1 (S = K = 50, T = 5/12, r = 10%, σ = 40%) gives 4.49 for the American put on a 5-step tree, and the tests reproduce it.
 
+![Binomial tree convergence](docs/binomial_convergence.png)
+
+The tree price zigzags between even and odd n because the strike falls at a different place relative to the nodes, but both sequences close in on Black–Scholes like 1/n. The American put settles about 0.206 above the European one: the value of being allowed to exercise early.
+
+### Early-exercise boundary
+
+`american_put_boundary` records, at each step of the tree, the highest stock price at which exercising beats holding. Below this critical price S*(t) the put should be exercised immediately; above it, it should be held.
+
+![American put early-exercise boundary](docs/put_boundary.png)
+
+- **S* < K always and S* → K at expiry.** Close to expiry there is little time value left to give up, so exercising pays as soon as the put is in the money.
+- **Higher volatility pushes S* down.** More volatility means more option value from waiting, so the stock has to fall further before exercising is worth it.
+- **With r = 0 there is no early exercise.** Exercising early brings K forward, which is worth something only if K earns interest; a test checks that the boundary is empty when r = 0. (A tolerance of 1e-12·K is needed: in the deep in-the-money region holding and exercising are exactly equal when r = 0, and rounding error alone otherwise flagged early exercise.)
+- **The steps are from the tree.** Node prices are discrete, so S* moves from one node level to the next. Successive steps alternate between two sets of node prices, so the plot uses every other step and the test checks that S* never falls within each set.
+
 ## Run it
 
 ```bash
 pip install -r requirements.txt
 pytest
 python -m examples.plot_greeks   # regenerates docs/greeks.png and docs/mc_convergence.png
+python -m examples.greeks_fd     # finite-difference table and docs/greeks_fd_error.png
+python -m examples.plot_binomial # docs/binomial_convergence.png and docs/put_boundary.png
 ```
 
 ```python

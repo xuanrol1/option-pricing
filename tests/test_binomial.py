@@ -1,5 +1,6 @@
+import numpy as np
 import pytest
-from pricing import binomial_price, bs_price
+from pricing import american_put_boundary, binomial_price, bs_price
 
 CASES = [dict(S=42, K=40, T=0.5, r=0.10, sigma=0.20),
          dict(S=40, K=40, T=1.0, r=0.05, sigma=0.30),
@@ -56,3 +57,24 @@ def test_hull_american_put():
 def test_rejects_unknown_option_type():
     with pytest.raises(ValueError):
         binomial_price(**CASES[0], option_type="straddle")
+
+
+def test_put_boundary_lies_below_strike_and_rises_to_it_at_expiry():
+    p = dict(S=40, K=40, T=1.0, r=0.05, sigma=0.30)
+    t, S_star = american_put_boundary(**p, n=400)
+    known = ~np.isnan(S_star)
+    assert known[-1]                                   # just before expiry some node is exercised
+    assert (S_star[known] < p["K"]).all()
+    assert S_star[-1] > 0.95 * p["K"]                  # boundary approaches K as t → T
+    # Steps of the same parity share node prices, so compare every other step:
+    # there the boundary must never fall as expiry approaches.
+    for parity in (0, 1):
+        b = S_star[parity::2]
+        b = b[~np.isnan(b)]
+        assert (np.diff(b) >= -1e-9).all()
+
+
+def test_no_early_exercise_when_rate_is_zero():
+    # With r = 0, waiting costs nothing, so an American put is never exercised early.
+    t, S_star = american_put_boundary(40, 40, 1.0, 0.0, 0.30, n=200)
+    assert np.isnan(S_star).all()
