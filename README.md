@@ -1,6 +1,6 @@
 # option-pricing
 
-Black–Scholes option pricing, Greeks and implied volatility in Python, with analytical, finite-difference and Monte Carlo validation.
+Black–Scholes option pricing, Greeks, implied volatility and binomial trees for American options in Python, with analytical, finite-difference and Monte Carlo validation.
 
 ## Status
 
@@ -14,6 +14,7 @@ Black–Scholes option pricing, Greeks and implied volatility in Python, with an
 | Plots of the Greeks and Monte Carlo convergence | Done |
 | Implied volatility: bisection and Newton–Raphson | Done |
 | Volatility smile from market option data | Done |
+| Binomial tree (CRR): European and American options | Done |
 
 ## Model
 
@@ -89,6 +90,15 @@ If Black–Scholes held exactly, the curve would be flat. Instead implied volati
 
 Calls only: AMZN pays no dividend, so an American call is worth the same as a European one and Black–Scholes applies. American puts can be exercised early, so they are left out.
 
+## Binomial tree and American options
+
+`binomial_price` builds a Cox–Ross–Rubinstein tree: in each step of length dt = T/n the stock moves up by u = e^(σ√dt) or down by d = 1/u, with risk-neutral probability p = (e^(r dt) − d) / (u − d). Working backwards from expiry, each node is the discounted expected value of its two children. For an American option, each node is also compared with the value of exercising immediately, and the larger one is kept.
+
+- **Convergence to Black–Scholes.** For S = K = 40, T = 1, r = 5%, σ = 30%, the European put's error is −0.0118 with 100 steps, −0.00118 with 1,000 and −0.00059 with 2,000: the error falls like 1/n (it also alternates between even and odd n, so the test compares even step counts).
+- **American call = European call.** Without dividends, exercising a call early gives up its time value and the interest on K, so the early-exercise check never binds and the two prices agree to 1e-10.
+- **American put > European put.** Deep in the money, a European put is worth about K e^(−rT) − S, which is less than the intrinsic value K − S. The American put can be exercised for K − S immediately. For the Hull example the American put is worth 0.910 against 0.809 for the European one.
+- **Textbook value:** Hull's Example 21.1 (S = K = 50, T = 5/12, r = 10%, σ = 40%) gives 4.49 for the American put on a 5-step tree, and the tests reproduce it.
+
 ## Run it
 
 ```bash
@@ -103,5 +113,7 @@ bs_price(42, 40, 0.5, 0.10, 0.20, "call")   # 4.7594...
 delta(42, 40, 0.5, 0.10, 0.20, "call")      # 0.7791...
 from pricing import implied_vol_newton
 implied_vol_newton(4.7594, 42, 40, 0.5, 0.10, "call")   # 0.2000...
+from pricing import binomial_price
+binomial_price(42, 40, 0.5, 0.10, 0.20, "put", n=2000, american=True)   # 0.9102...
 ```
 
