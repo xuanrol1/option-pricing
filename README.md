@@ -138,13 +138,15 @@ Calls can use Black–Scholes directly: AMZN pays no dividend, so an American ca
 
 ![AMZN smile from calls and puts](docs/vol_smile_puts.png)
 
-Quotes of 3 Nov 2026, expiry 2026-11-20 (spot 247.69, r = 4.03%, T = 17 days):
+Quotes of 3 Nov 2026, expiry 2026-11-20 (spot 247.66, r = 4.03%, T = 17 days):
 
-- **Out-of-the-money puts show the same skew as the calls.** σ falls from 53.8% at K = 195 to 35.3% at the money. The American and European answers differ by less than 0.002 here: 17 days before expiry, the right to exercise an out-of-the-money put early is worth almost nothing.
-- **In the money the European formula overstates σ**, by 0.03–0.04 for deep strikes (75.3% against 78.5% at K = 320), the same direction as in the tests.
-- **In-the-money σ is mostly noise.** Deep in-the-money puts are worth almost exactly their intrinsic value, so Vega is tiny and a few cents of bid-ask spread move σ by many points: put σ jumps around between 35% and 110% above the spot. This is why a smile is usually built from out-of-the-money options only, puts below the spot and calls above it, as in the left panel.
-- **The American bound catches a bad quote that the European one lets through.** At K = 350 the midpoint 101.875 is below the intrinsic value 350 − 247.69 = 102.31, so an American put at that price could be bought and exercised at once for a profit. `implied_vol_american_put` rejects it. The European lower bound K e^(−rT) − S = 101.65 is lower, so `implied_vol_newton` accepts the quote and returns 72.3%, a meaningless number.
-- Yahoo's implied volatilities are about 1.5 points lower out of the money, a small and consistent gap that probably comes from a different interest rate or day-count convention.
+- **Puts and calls agree at the money.** Below the spot the left panel uses out-of-the-money puts, solved on the American tree; above it, out-of-the-money calls, solved with Black–Scholes. The two meet at about 35% on either side of the spot: two option types and two models give the same volatility where they overlap.
+- **A skew with a smile.** Put σ falls from 51.3% at K = 200 to 35.0% at the money. The call side keeps falling to about 34% near K = 272.5 and then turns up again, to about 40% at K = 305.
+- **Out of the money, American and European agree.** The two solvers differ by at most 0.0012 for puts below the spot: 17 days before expiry, the right to exercise an out-of-the-money put early is worth almost nothing.
+- **In the money the European formula overstates σ**, by 0.05–0.08 for deep strikes (49.3% against 54.6% at K = 300, 56.7% against 64.4% at K = 315), the same direction as in the tests.
+- **In-the-money σ is mostly noise.** Deep in-the-money puts are worth almost exactly their intrinsic value, so Vega is tiny and small price changes move σ a long way: above the spot, put σ jumps between 34% and 97% from one strike to the next. Running the script three times within a few minutes made this concrete: at K = 320 the midpoint moved from 73.10 to 72.70 (0.5%) and the American σ fell from 75.3% to 67.7%. This is why a smile is usually built from out-of-the-money options only, as in the left panel.
+- **The American bound catches a bad quote that the European one lets through.** At K = 350 the midpoint 101.875 is below the intrinsic value 350 − 247.66 = 102.34, so an American put at that price could be bought and exercised at once for a profit. `implied_vol_american_put` rejects it. The European lower bound K e^(−rT) − S = 101.68 is lower, so `implied_vol_newton` accepts the quote and returns 71.2%, a meaningless number.
+- Yahoo's implied volatilities are 1–2 points lower out of the money, a small and consistent gap that probably comes from a different interest rate or day-count convention.
 
 ## 6. Project layout and how to run it
 
