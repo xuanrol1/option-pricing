@@ -1,25 +1,24 @@
 # option-pricing
 
-Black–Scholes option pricing, Greeks, implied volatility and binomial trees for American options in Python, with analytical, finite-difference and Monte Carlo validation.
+European and American option pricing in Python, written from first principles: Black–Scholes prices and Greeks, a Monte Carlo pricer, a Cox–Ross–Rubinstein binomial tree, and implied-volatility solvers. Each method is checked against an independent one (textbook values, put-call parity, finite differences, simulation, the closed form) in 283 automated tests, and the solvers are applied to AMZN option quotes.
 
-## Status
+## Highlights
 
-| Component | Status |
-| --- | --- |
-| Black–Scholes call and put prices | Done |
-| Put-call parity and textbook checks | Done |
-| Greeks: Delta, Gamma, Vega, Theta, Rho | Done |
-| Finite-difference validation of the Greeks | Done |
-| Finite-difference error vs bump size | Done |
-| Monte Carlo validation | Done |
-| Plots of the Greeks and Monte Carlo convergence | Done |
-| Implied volatility: bisection and Newton–Raphson | Done |
-| Volatility smile from market option data | Done |
-| Binomial tree (CRR): European and American options | Done |
-| American put early-exercise boundary | Done |
-| Implied volatility of American puts | Done |
+- **Every number is checked two ways.** Analytical Greeks are compared with finite differences, Monte Carlo and the binomial tree with the closed form, and the American tree with Hull's textbook value. The finite-difference check caught an operator-precedence bug in Theta.
+- **Implied volatility that fails safely.** Newton–Raphson converges in 4 iterations against 29 for bisection, falls back to bisection when Vega is near zero, and rejects prices outside the no-arbitrage bounds. A price-based stopping rule stopped Newton at the wrong σ for deep out-of-the-money options; it now stops on the step in σ.
+- **American options.** The binomial tree prices the early-exercise premium, traces the optimal exercise boundary of an American put, and inverts American put prices to implied volatility. Feeding an American price into the European formula overstates volatility (27.9% instead of 25.0% in one test case).
+- **Market data.** AMZN call quotes show the equity skew: implied volatility falls from about 50% to 40% across strikes instead of being flat.
 
-## Model
+## Contents
+
+1. [Black–Scholes model and Greeks](#1-blackscholes-model-and-greeks)
+2. [Validation](#2-validation)
+3. [Implied volatility](#3-implied-volatility)
+4. [Binomial tree and American options](#4-binomial-tree-and-american-options)
+5. [Market data: AMZN volatility smile](#5-market-data-amzn-volatility-smile)
+6. [Project layout and how to run it](#6-project-layout-and-how-to-run-it)
+
+## 1. Black–Scholes model and Greeks
 
 For a European option on a non-dividend-paying stock:
 
@@ -30,8 +29,6 @@ d2 = d1 − σ √T
 Call = S N(d1) − K e^(−rT) N(d2)
 Put  = K e^(−rT) N(−d2) − S N(−d1)
 ```
-
-## Greeks
 
 | Greek | Measures | Call | Put |
 | --- | --- | --- | --- |
@@ -45,37 +42,38 @@ Put  = K e^(−rT) N(−d2) − S N(−d1)
 
 For the Hull example: call Delta 0.779, put Delta −0.221, Gamma 0.0500, Vega 8.81, call Theta −4.56, put Theta −0.75, call Rho 13.98, put Rho −5.04.
 
-## Plots
-
 ![Black–Scholes price and Greeks against the stock price](docs/greeks.png)
 
 - **Delta** moves from 0 to 1 for a call (−1 to 0 for a put); call Delta − put Delta = 1 at every price.
 - **Gamma and Vega** are bell-shaped and identical for calls and puts. Gamma peaks where d1 = −σ√T, at S = K e^(−(r + 3σ²/2)T) ≈ 36.9, below the strike. (Setting d1 = 0 would miss the extra 1/S factor in Gamma = n(d1) / (S σ √T).)
 - **Theta** is negative for calls. For a deep in-the-money European put it turns positive: the put is worth roughly K e^(−rT) − S, and that discounted strike grows as expiry approaches.
 
+## 2. Validation
+
+- **Textbook value:** Hull's Example 15.6 (S = 42, K = 40, T = 0.5, r = 10%, σ = 20%) gives a call of 4.76 and a put of 0.81.
+- **Put-call parity:** `C − P = S − K e^(−rT)` holds to 1e-10 across a grid of prices, volatilities and maturities. Parity follows from no-arbitrage alone, so it catches sign errors in the put formula that would otherwise run without error. Differentiating it gives the Greek relations that are also tested: call Delta − put Delta = 1, and calls and puts share Gamma and Vega.
+- **Finite differences:** every analytical Greek is compared with a central difference of the pricing function (bump S, σ, r or T) across 24 parameter combinations, for calls and puts. This independent check caught an operator-precedence error in Theta during development: `x / 2 * sqrt(T)` puts √T in the numerator, and the put Theta came out positive.
+- **Monte Carlo:** simulating S_T = S e^((r − σ²/2)T + σ√T Z) under the risk-neutral measure and discounting the average payoff reproduces the closed-form price. For the Hull example, 100,000 paths give a call of 4.7548 (closed form 4.7594, standard error 0.016) and a put of 0.8094 (closed form 0.8086). Tests require the estimate to lie within four standard errors of Black–Scholes for calls and puts across three parameter sets, and check that the standard error shrinks like 1/√n.
+
 ![Monte Carlo estimate converging to the Black–Scholes price](docs/mc_convergence.png)
 
 Each point is an independent simulation. The ±2 standard-error band narrows like 1/√n, and the estimates settle on the closed-form price.
 
-## Validation
+### Choosing the finite-difference bump
 
-- **Textbook value:** Hull's Example 15.6 (S = 42, K = 40, T = 0.5, r = 10%, σ = 20%) gives a call of 4.76 and a put of 0.81.
-- **Finite differences:** every analytical Greek is compared with a central difference of the pricing function (bump S, σ, r or T) across 24 parameter combinations, for calls and puts. This independent check caught an operator-precedence error in Theta during development: `x / 2 * sqrt(T)` puts √T in the numerator, and the put Theta came out positive.
-- **Finite differences in detail** (`python -m examples.greeks_fd`): for the Hull example with h = 1e-4,
+For the Hull example with h = 1e-4 (`python -m examples.greeks_fd`):
 
-  | Greek | Analytical | Central difference | Absolute error |
-  | --- | --- | --- | --- |
-  | Delta | 0.77913129 | 0.77913129 | 2.6e-11 |
-  | Gamma | 0.04996267 | 0.04996252 | 1.5e-07 |
-  | Vega | 8.81341506 | 8.81341461 | 4.5e-07 |
+| Greek | Analytical | Central difference | Absolute error |
+| --- | --- | --- | --- |
+| Delta | 0.77913129 | 0.77913129 | 2.6e-11 |
+| Gamma | 0.04996267 | 0.04996252 | 1.5e-07 |
+| Vega | 8.81341506 | 8.81341461 | 4.5e-07 |
 
-  ![Finite-difference error against bump size](docs/greeks_fd_error.png)
+![Finite-difference error against bump size](docs/greeks_fd_error.png)
 
-  The error is V-shaped in h. For large h the Taylor remainder dominates and the error falls like h². For small h, subtracting two nearly equal prices loses digits: the rounding error grows like ε/h for Delta and Vega and like ε/h² for Gamma (ε ≈ 2.2e-16). The best bump sits where the two meet: about 5e-5 for Delta but about 6e-3 for Gamma, which divides by h². So one h does not suit every Greek: h = 1e-4 is near-optimal for Delta but leaves Gamma with a rounding error of 1.5e-7, which is why the Gamma test tolerance is looser.
-- **Monte Carlo:** simulating S_T = S e^((r − σ²/2)T + σ√T Z) under the risk-neutral measure and discounting the average payoff reproduces the closed-form price. For the Hull example, 100,000 paths give a call of 4.7548 (closed form 4.7594, standard error 0.016) and a put of 0.8094 (closed form 0.8086). Tests require the estimate to lie within four standard errors of Black–Scholes for calls and puts across three parameter sets, and check that the standard error shrinks like 1/√n.
-- **Put-call parity:** `C − P = S − K e^(−rT)` holds to 1e-10 across a grid of prices, volatilities and maturities. Parity follows from no-arbitrage alone, so it catches sign errors in the put formula that would otherwise run without error. Differentiating it gives the Greek relations that are also tested: call Delta − put Delta = 1, and calls and puts share Gamma and Vega.
+The error is V-shaped in h. For large h the Taylor remainder dominates and the error falls like h². For small h, subtracting two nearly equal prices loses digits: the rounding error grows like ε/h for Delta and Vega and like ε/h² for Gamma (ε ≈ 2.2e-16). The best bump sits where the two meet: about 5e-5 for Delta but about 6e-3 for Gamma, which divides by h². So one h does not suit every Greek: h = 1e-4 is near-optimal for Delta but leaves Gamma with a rounding error of 1.5e-7, which is why the Gamma test tolerance is looser.
 
-## Implied volatility
+## 3. Implied volatility
 
 Volatility is the one Black–Scholes input that cannot be observed. Implied volatility is the σ that makes the model price equal a given market price. Because Vega > 0, the price is strictly increasing in σ, so the root is unique.
 
@@ -94,17 +92,7 @@ Newton's errors in σ go 0.035 → 0.000078 → 0.0000000005: each step roughly 
 
 **Tests:** round trips for both solvers over 72 combinations of stock price, maturity, volatility and option type recover σ to within 1e-6; out-of-bounds prices raise `ValueError`; the deep out-of-the-money case above is tested explicitly.
 
-### Volatility smile from market data
-
-![AMZN implied volatility smile](docs/vol_smile.png)
-
-`examples/vol_smile.py` downloads the AMZN call chain expiring 2026-11-20 from Yahoo Finance (closing quotes of 16 Oct 2026, spot 250, 13-week T-bill rate 4.07%), prices each option at the bid-ask midpoint, drops quotes with no bid or a spread above 20% of the midpoint, and solves for implied volatility with `implied_vol_newton`.
-
-If Black–Scholes held exactly, the curve would be flat. Instead implied volatility falls from about 50% at a strike of 205 to about 40% near 285, then turns up slightly: the equity skew. Out-of-the-money strikes match Yahoo's figures to within 0.01; the gap widens in the money, where Yahoo's numbers are reproduced closely by setting the interest rate to zero. Four deep in-the-money quotes fall below the no-arbitrage lower bound, so the bounds check rejects them.
-
-Calls only: AMZN pays no dividend, so an American call is worth the same as a European one and Black–Scholes applies. American puts can be exercised early, so they are left out.
-
-## Binomial tree and American options
+## 4. Binomial tree and American options
 
 `binomial_price` builds a Cox–Ross–Rubinstein tree: in each step of length dt = T/n the stock moves up by u = e^(σ√dt) or down by d = 1/u, with risk-neutral probability p = (e^(r dt) − d) / (u − d). Working backwards from expiry, each node is the discounted expected value of its two children. For an American option, each node is also compared with the value of exercising immediately, and the larger one is kept.
 
@@ -136,26 +124,46 @@ The tree price zigzags between even and odd n because the strike falls at a diff
 - **Bounds.** An American put is worth more than its intrinsic value K − S (not the discounted K e^(−rT) − S, as for a European put) and less than K. A price at intrinsic value has no unique σ: deep in the money at low volatility the put is exercised at once and is worth exactly K − S for every low enough σ (S = 32, K = 40, σ = 15% is an example in the tests), so the solver raises `ValueError`.
 - **Lower end of the bracket.** The CRR tree needs d < e^(r dt) < u, which means σ > r√dt; below that the risk-neutral probability leaves (0, 1). The bisection therefore starts just above r√(T/n) instead of at 0.0001.
 
-**AMZN puts.** `python -m examples.vol_smile_puts` adds AMZN puts on the same expiry to the smile, using the tree for puts and Black–Scholes for calls, and also shows the European formula applied to the puts. On a synthetic chain with a known skew the tree recovers every put σ to within 3e-7, while the European formula overstates σ for in-the-money puts (35.2% → 42.3% at K = 290 with S = 250, 17 days to expiry). The figure from live data is not in the repository yet.
+## 5. Market data: AMZN volatility smile
 
-## Run it
+![AMZN implied volatility smile](docs/vol_smile.png)
+
+`examples/vol_smile.py` downloads the AMZN call chain expiring 2026-11-20 from Yahoo Finance (closing quotes of 16 Oct 2026, spot 250, 13-week T-bill rate 4.07%), prices each option at the bid-ask midpoint, drops quotes with no bid or a spread above 20% of the midpoint, and solves for implied volatility with `implied_vol_newton`.
+
+If Black–Scholes held exactly, the curve would be flat. Instead implied volatility falls from about 50% at a strike of 205 to about 40% near 285, then turns up slightly: the equity skew. Out-of-the-money strikes match Yahoo's figures to within 0.01; the gap widens in the money, where Yahoo's numbers are reproduced closely by setting the interest rate to zero. Four deep in-the-money quotes fall below the no-arbitrage lower bound, so the bounds check rejects them.
+
+Calls can use Black–Scholes directly: AMZN pays no dividend, so an American call is worth the same as a European one.
+
+**Adding puts.** AMZN puts are American, so `examples/vol_smile_puts.py` solves them on the binomial tree with `implied_vol_american_put`, solves the calls with Black–Scholes, and also shows the European formula applied to the puts for comparison. On a synthetic chain with a known skew the tree recovers every put σ to within 3e-7, while the European formula overstates σ for in-the-money puts (35.2% → 42.3% at K = 290 with S = 250, 17 days to expiry). The figure from live data is not in the repository yet.
+
+## 6. Project layout and how to run it
+
+| Path | Contents |
+| --- | --- |
+| `pricing/black_scholes.py` | Black–Scholes prices |
+| `pricing/greeks.py` | Delta, Gamma, Vega, Theta, Rho |
+| `pricing/monte_carlo.py` | Monte Carlo price and standard error |
+| `pricing/implied_vol.py` | Bisection, Newton–Raphson and American put implied volatility |
+| `pricing/binomial.py` | CRR tree and American put exercise boundary |
+| `examples/` | Scripts that produce every figure in `docs/` |
+| `tests/` | 283 tests, run with `pytest` |
 
 ```bash
 pip install -r requirements.txt
 pytest
-python -m examples.plot_greeks   # regenerates docs/greeks.png and docs/mc_convergence.png
+python -m examples.plot_greeks   # docs/greeks.png and docs/mc_convergence.png
 python -m examples.greeks_fd     # finite-difference table and docs/greeks_fd_error.png
 python -m examples.plot_binomial # docs/binomial_convergence.png and docs/put_boundary.png
-python -m examples.vol_smile_puts 2026-11-20   # AMZN calls + puts; needs yfinance and internet
+
+pip install yfinance pandas      # only for the market-data scripts, which need internet
+python -m examples.vol_smile                 # docs/vol_smile.png
+python -m examples.vol_smile_puts 2026-11-20 # docs/vol_smile_puts.png
 ```
 
 ```python
-from pricing import bs_price, delta
-bs_price(42, 40, 0.5, 0.10, 0.20, "call")   # 4.7594...
-delta(42, 40, 0.5, 0.10, 0.20, "call")      # 0.7791...
-from pricing import implied_vol_newton
-implied_vol_newton(4.7594, 42, 40, 0.5, 0.10, "call")   # 0.2000...
-from pricing import binomial_price
-binomial_price(42, 40, 0.5, 0.10, 0.20, "put", n=2000, american=True)   # 0.9102...
+from pricing import bs_price, delta, implied_vol_newton, binomial_price
+bs_price(42, 40, 0.5, 0.10, 0.20, "call")                              # 4.7594...
+delta(42, 40, 0.5, 0.10, 0.20, "call")                                 # 0.7791...
+implied_vol_newton(4.7594, 42, 40, 0.5, 0.10, "call")                  # 0.2000...
+binomial_price(42, 40, 0.5, 0.10, 0.20, "put", n=2000, american=True)  # 0.9102...
 ```
-
