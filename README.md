@@ -10,6 +10,7 @@ Black–Scholes option pricing, Greeks, implied volatility and binomial trees fo
 | Put-call parity and textbook checks | Done |
 | Greeks: Delta, Gamma, Vega, Theta, Rho | Done |
 | Finite-difference validation of the Greeks | Done |
+| Finite-difference error vs bump size | Done |
 | Monte Carlo validation | Done |
 | Plots of the Greeks and Monte Carlo convergence | Done |
 | Implied volatility: bisection and Newton–Raphson | Done |
@@ -58,6 +59,17 @@ Each point is an independent simulation. The ±2 standard-error band narrows lik
 
 - **Textbook value:** Hull's Example 15.6 (S = 42, K = 40, T = 0.5, r = 10%, σ = 20%) gives a call of 4.76 and a put of 0.81.
 - **Finite differences:** every analytical Greek is compared with a central difference of the pricing function (bump S, σ, r or T) across 24 parameter combinations, for calls and puts. This independent check caught an operator-precedence error in Theta during development: `x / 2 * sqrt(T)` puts √T in the numerator, and the put Theta came out positive.
+- **Finite differences in detail** (`python -m examples.greeks_fd`): for the Hull example with h = 1e-4,
+
+  | Greek | Analytical | Central difference | Absolute error |
+  | --- | --- | --- | --- |
+  | Delta | 0.77913129 | 0.77913129 | 2.6e-11 |
+  | Gamma | 0.04996267 | 0.04996252 | 1.5e-07 |
+  | Vega | 8.81341506 | 8.81341461 | 4.5e-07 |
+
+  ![Finite-difference error against bump size](docs/greeks_fd_error.png)
+
+  The error is V-shaped in h. For large h the Taylor remainder dominates and the error falls like h². For small h, subtracting two nearly equal prices loses digits: the rounding error grows like ε/h for Delta and Vega and like ε/h² for Gamma (ε ≈ 2.2e-16). The best bump sits where the two meet: about 5e-5 for Delta but about 6e-3 for Gamma, which divides by h². So one h does not suit every Greek: h = 1e-4 is near-optimal for Delta but leaves Gamma with a rounding error of 1.5e-7, which is why the Gamma test tolerance is looser.
 - **Monte Carlo:** simulating S_T = S e^((r − σ²/2)T + σ√T Z) under the risk-neutral measure and discounting the average payoff reproduces the closed-form price. For the Hull example, 100,000 paths give a call of 4.7548 (closed form 4.7594, standard error 0.016) and a put of 0.8094 (closed form 0.8086). Tests require the estimate to lie within four standard errors of Black–Scholes for calls and puts across three parameter sets, and check that the standard error shrinks like 1/√n.
 - **Put-call parity:** `C − P = S − K e^(−rT)` holds to 1e-10 across a grid of prices, volatilities and maturities. Parity follows from no-arbitrage alone, so it catches sign errors in the put formula that would otherwise run without error. Differentiating it gives the Greek relations that are also tested: call Delta − put Delta = 1, and calls and puts share Gamma and Vega.
 
