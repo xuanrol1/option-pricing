@@ -40,19 +40,27 @@ def smile(spot, r, T, calls, puts):
 
 
 def plot(spot, expiry, calls, puts, path):
+    """Left: the smile from out-of-the-money options only (puts below spot, calls above).
+    Right: American tree vs European formula on every put, in and out of the money."""
     lo, hi = 0.8 * spot, 1.3 * spot
-    c = calls[(calls["strike"] > lo) & (calls["strike"] < hi)]
-    p = puts[(puts["strike"] > lo) & (puts["strike"] < hi)]
-    plt.figure(figsize=(8, 4.5))
-    plt.plot(c["strike"], c["iv"], "o-", label="Calls (Black–Scholes)")
-    plt.plot(p["strike"], p["iv_american"], "s-", label="Puts (American tree)")
-    plt.plot(p["strike"], p["iv_european"], "x--", alpha=0.6, label="Puts (European formula)")
-    plt.axvline(spot, color="gray", linestyle=":", label=f"Spot = {spot:.0f}")
-    plt.xlabel("Strike K")
-    plt.ylabel("Implied volatility")
-    plt.title(f"AMZN implied volatility, calls and puts expiring {expiry}")
-    plt.legend()
-    plt.savefig(path, dpi=160)
+    c = calls[(calls["strike"] >= spot) & (calls["strike"] < hi)]
+    p_otm = puts[(puts["strike"] <= spot) & (puts["strike"] > lo)]
+    p_all = puts[(puts["strike"] > lo) & (puts["strike"] < hi)]
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 4.5))
+    ax1.plot(p_otm["strike"], p_otm["iv_american"], "s-", label="OTM puts (American tree)")
+    ax1.plot(c["strike"], c["iv"], "o-", label="OTM calls (Black–Scholes)")
+    ax1.set_title(f"AMZN smile from out-of-the-money options, expiring {expiry}")
+    ax2.plot(p_all["strike"], p_all["iv_american"], "s-", label="American tree")
+    ax2.plot(p_all["strike"], p_all["iv_european"], "x--", label="European formula")
+    ax2.set_title("AMZN puts: in the money the European formula overstates σ")
+    for ax in (ax1, ax2):
+        ax.axvline(spot, color="gray", linestyle=":", label=f"Spot = {spot:.0f}")
+        ax.set_xlabel("Strike K")
+        ax.set_ylabel("Implied volatility")
+        ax.legend()
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    print(f"Saved {path}")
 
 
 if __name__ == "__main__":

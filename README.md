@@ -134,7 +134,17 @@ If Black–Scholes held exactly, the curve would be flat. Instead implied volati
 
 Calls can use Black–Scholes directly: AMZN pays no dividend, so an American call is worth the same as a European one.
 
-**Adding puts.** AMZN puts are American, so `examples/vol_smile_puts.py` solves them on the binomial tree with `implied_vol_american_put`, solves the calls with Black–Scholes, and also shows the European formula applied to the puts for comparison. On a synthetic chain with a known skew the tree recovers every put σ to within 3e-7, while the European formula overstates σ for in-the-money puts (35.2% → 42.3% at K = 290 with S = 250, 17 days to expiry). The figure from live data is not in the repository yet.
+**Adding puts.** AMZN puts are American, so `examples/vol_smile_puts.py` solves them on the binomial tree with `implied_vol_american_put`, solves the calls with Black–Scholes, and also runs the European formula on the puts for comparison. On a synthetic chain with a known skew the tree recovers every put σ to within 3e-7.
+
+![AMZN smile from calls and puts](docs/vol_smile_puts.png)
+
+Quotes of 3 Nov 2026, expiry 2026-11-20 (spot 247.69, r = 4.03%, T = 17 days):
+
+- **Out-of-the-money puts show the same skew as the calls.** σ falls from 53.8% at K = 195 to 35.3% at the money. The American and European answers differ by less than 0.002 here: 17 days before expiry, the right to exercise an out-of-the-money put early is worth almost nothing.
+- **In the money the European formula overstates σ**, by 0.03–0.04 for deep strikes (75.3% against 78.5% at K = 320), the same direction as in the tests.
+- **In-the-money σ is mostly noise.** Deep in-the-money puts are worth almost exactly their intrinsic value, so Vega is tiny and a few cents of bid-ask spread move σ by many points: put σ jumps around between 35% and 110% above the spot. This is why a smile is usually built from out-of-the-money options only, puts below the spot and calls above it, as in the left panel.
+- **The American bound catches a bad quote that the European one lets through.** At K = 350 the midpoint 101.875 is below the intrinsic value 350 − 247.69 = 102.31, so an American put at that price could be bought and exercised at once for a profit. `implied_vol_american_put` rejects it. The European lower bound K e^(−rT) − S = 101.65 is lower, so `implied_vol_newton` accepts the quote and returns 72.3%, a meaningless number.
+- Yahoo's implied volatilities are about 1.5 points lower out of the money, a small and consistent gap that probably comes from a different interest rate or day-count convention.
 
 ## 6. Project layout and how to run it
 
