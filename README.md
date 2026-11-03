@@ -17,6 +17,7 @@ Black–Scholes option pricing, Greeks, implied volatility and binomial trees fo
 | Volatility smile from market option data | Done |
 | Binomial tree (CRR): European and American options | Done |
 | American put early-exercise boundary | Done |
+| Implied volatility of American puts | Done |
 
 ## Model
 
@@ -126,6 +127,14 @@ The tree price zigzags between even and odd n because the strike falls at a diff
 - **Higher volatility pushes S* down.** More volatility means more option value from waiting, so the stock has to fall further before exercising is worth it.
 - **With r = 0 there is no early exercise.** Exercising early brings K forward, which is worth something only if K earns interest; a test checks that the boundary is empty when r = 0. (A tolerance of 1e-12·K is needed: in the deep in-the-money region holding and exercising are exactly equal when r = 0, and rounding error alone otherwise flagged early exercise.)
 - **The steps are from the tree.** Node prices are discrete, so S* moves from one node level to the next. Successive steps alternate between two sets of node prices, so the plot uses every other step and the test checks that S* never falls within each set.
+
+### Implied volatility of American puts
+
+`implied_vol_american_put` finds the σ at which the American tree price matches a given price, by bisection (the tree price rises with σ, just like Black–Scholes).
+
+- **Using the European formula on an American price overstates volatility.** For S = 36, K = 40, T = 1, r = 5%, σ = 25%, the American put is worth 5.217. The tree solver recovers 25.00%; `implied_vol_newton`, which assumes a European put, returns 27.93%, because it reads the early-exercise premium as extra volatility.
+- **Bounds.** An American put is worth more than its intrinsic value K − S (not the discounted K e^(−rT) − S, as for a European put) and less than K. A price at intrinsic value has no unique σ: deep in the money at low volatility the put is exercised at once and is worth exactly K − S for every low enough σ (S = 32, K = 40, σ = 15% is an example in the tests), so the solver raises `ValueError`.
+- **Lower end of the bracket.** The CRR tree needs d < e^(r dt) < u, which means σ > r√dt; below that the risk-neutral probability leaves (0, 1). The bisection therefore starts just above r√(T/n) instead of at 0.0001.
 
 ## Run it
 
