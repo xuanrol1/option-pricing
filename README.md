@@ -136,6 +136,8 @@ The tree price zigzags between even and odd n because the strike falls at a diff
 - **Bounds.** An American put is worth more than its intrinsic value K − S (not the discounted K e^(−rT) − S, as for a European put) and less than K. A price at intrinsic value has no unique σ: deep in the money at low volatility the put is exercised at once and is worth exactly K − S for every low enough σ (S = 32, K = 40, σ = 15% is an example in the tests), so the solver raises `ValueError`.
 - **Lower end of the bracket.** The CRR tree needs d < e^(r dt) < u, which means σ > r√dt; below that the risk-neutral probability leaves (0, 1). The bisection therefore starts just above r√(T/n) instead of at 0.0001.
 
+**AMZN puts.** `python -m examples.vol_smile_puts` adds AMZN puts on the same expiry to the smile, using the tree for puts and Black–Scholes for calls, and also shows the European formula applied to the puts. On a synthetic chain with a known skew the tree recovers every put σ to within 3e-7, while the European formula overstates σ for in-the-money puts (35.2% → 42.3% at K = 290 with S = 250, 17 days to expiry). The figure from live data is not in the repository yet.
+
 ## Run it
 
 ```bash
@@ -144,6 +146,7 @@ pytest
 python -m examples.plot_greeks   # regenerates docs/greeks.png and docs/mc_convergence.png
 python -m examples.greeks_fd     # finite-difference table and docs/greeks_fd_error.png
 python -m examples.plot_binomial # docs/binomial_convergence.png and docs/put_boundary.png
+python -m examples.vol_smile_puts 2026-11-20   # AMZN calls + puts; needs yfinance and internet
 ```
 
 ```python
